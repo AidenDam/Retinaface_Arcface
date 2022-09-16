@@ -509,6 +509,7 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 		metrics.append(distance_metric)
 	else:
 		metrics = distance_metric
+		bulkProcess = True
 
 	#------------------------------
 
@@ -545,7 +546,7 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 				elif j == 'euclidean':
 					distance = dst.findEuclideanDistance(img1_representation, img2_representation)
 				elif j == 'euclidean_l2':
-					distance = dst.findEuclideanDistance(distance.l2_normalize(img1_representation), distance.l2_normalize(img2_representation))
+					distance = dst.findEuclideanDistance(dst.l2_normalize(img1_representation), dst.l2_normalize(img2_representation))
 				else:
 					raise ValueError("Invalid distance_metric passed - ", distance_metric)
 

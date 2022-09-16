@@ -3,7 +3,7 @@ from retinaface import Face_Recognition
 
 tic = time.time()
 
-dst = Face_Recognition.verify('./test/data/test3.jpg', './test/data/test2.jpg')
+dst = Face_Recognition.verify('./test/data/test3.jpg', './test/data/test2.jpg', distance_metric=['cosine', 'euclidean', 'euclidean_l2'])
 
 tac = time.time()
 
