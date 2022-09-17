@@ -71,12 +71,12 @@ def get_image(img_path):
 
     return img
 
-def preprocess_face(img, target_size=(224, 224), grayscale = False, enforce_detection = True, return_region = False, align = True):
+def preprocess_face(img, target_size=(224, 224), grayscale = False, model = None, enforce_detection = True, return_region = False, align = True):
 
 	#img might be path, base64 or numpy array. Convert it to numpy whatever it is.
 	img = get_image(img)
 	base_img = img.copy()
-	img, region = detect_face(img, threshold=0.9, model = None, align = align, allow_upscaling = True)
+	img, region = detect_face(img, threshold=0.9, model = model, align = align, allow_upscaling = True)
 
 	#--------------------------
 
@@ -401,7 +401,7 @@ def find_input_shape(model):
 
 	return input_shape
 
-def represent(img_path, model = None, enforce_detection = True, align = True, normalization = 'base'):
+def represent(img_path, model = None, detector_backend = None, enforce_detection = True, align = True, normalization = 'base'):
 
 	"""
 	This function represents facial images as vectors.
@@ -410,8 +410,6 @@ def represent(img_path, model = None, enforce_detection = True, align = True, no
 		img_path: exact image path, numpy array (BGR) or based64 encoded images could be passed.
 
 		model: Built deepface model. A face recognition model is built every call of verify function. You can pass pre-built face recognition model optionally if you will call verify function several times. Consider to pass model if you are going to call represent function in a for loop.
-
-			model = DeepFace.build_model('VGG-Face')
 
 		enforce_detection (boolean): If any face could not be detected in an image, then verify function will return exception. Set this to False not to have this exception. This might be convenient for low resolution images.
 
@@ -431,6 +429,7 @@ def represent(img_path, model = None, enforce_detection = True, align = True, no
 
 	#detect and align
 	img = preprocess_face(img = img_path
+		, model = detector_backend
 		, target_size=(input_shape_y, input_shape_x)
 		, enforce_detection = enforce_detection
 		, align = align)
@@ -465,7 +464,7 @@ def initialize_input(img1_path, img2_path = None):
 
 	return img_list, bulkProcess
 
-def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, enforce_detection = True, align = True, prog_bar = True, normalization = 'base'):
+def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, detector_backend = None, enforce_detection = True, align = True, prog_bar = True, normalization = 'base'):
 
 	"""
 	This function verifies an image pair is same person or different persons.
@@ -478,7 +477,7 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 			['img2.jpg', 'img3.jpg']
 		]
 
-		distance_metric (string): cosine, euclidean, euclidean_l2
+		distance_metric (string) or list: cosine, euclidean, euclidean_l2
 
 		model: Built deepface model. A face recognition model is built every call of verify function. You can pass pre-built face recognition model optionally if you will call verify function several times.
 
@@ -525,6 +524,7 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 
 			img1_representation = represent(img_path = img1_path
 					, model = model
+					, detector_backend = detector_backend
 					, enforce_detection = enforce_detection
 					, align = align
 					, normalization = normalization
@@ -533,6 +533,7 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 			img2_representation = represent(img_path = img2_path
 					, model = model
 					, enforce_detection = enforce_detection
+					, detector_backend = detector_backend
 					, align = align
 					, normalization = normalization
 					)
@@ -587,3 +588,84 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 			resp_obj["pair_%d" % (i+1)] = resp_item
 
 		return resp_obj
+
+def verify_database(img_path, distance_metric = 'cosine', model = None, detector_backend = None, enforce_detection = True, align = True, prog_bar = True, normalization = 'base'):
+
+	"""
+	This function verifies an image pair is same person or different persons.
+
+	Parameters:
+		img1_path, img2_path: exact image path, numpy array (BGR) or based64 encoded images could be passed. 
+
+		distance_metric (string) or list: cosine, euclidean, euclidean_l2
+
+		model: Built deepface model. A face recognition model is built every call of verify function. You can pass pre-built face recognition model optionally if you will call verify function several times.
+
+		enforce_detection (boolean): If no face could not be detected in an image, then this function will return exception by default. Set this to False not to have this exception. This might be convenient for low resolution images.
+
+		prog_bar (boolean): enable/disable a progress bar
+
+	Returns:
+		Verify function returns a dictionary. If img1_path is a list of image pairs, then the function will return list of dictionary.
+
+		{
+			"verified": True
+			, "distance": 0.2563
+			, "max_threshold_to_verify": 0.40
+			, "similarity_metric": "cosine"
+		}
+
+	"""
+
+	img1_representation = represent(img_path = img_path
+			, model = model
+			, detector_backend = detector_backend
+			, enforce_detection = enforce_detection
+			, align = align
+			, normalization = normalization
+			)
+
+	resp_objects = []
+	with open('databas.txt', 'r') as f:
+		while True:
+			line = f.readline()
+
+			if not line:
+				break
+			
+			line = line.split()
+			label = line[0]
+
+			img2_representation = list(map(float, line[1:]))
+
+			#----------------------
+			#find distances between embeddings
+			if distance_metric == 'cosine':
+				distance = dst.findCosineDistance(img1_representation, img2_representation)
+			elif distance_metric == 'euclidean':
+				distance = dst.findEuclideanDistance(img1_representation, img2_representation)
+			elif distance_metric == 'euclidean_l2':
+				distance = dst.findEuclideanDistance(dst.l2_normalize(img1_representation), dst.l2_normalize(img2_representation))
+			else:
+				raise ValueError("Invalid distance_metric passed - ", distance_metric)
+
+			distance = np.float64(distance) #causes trobule for euclideans in api calls if this is not set (issue #175)
+			#----------------------
+			#decision
+
+			threshold = dst.findThreshold(distance_metric)
+
+			if distance <= threshold:
+				resp_obj = {
+					"label": label
+					, "distance": distance
+					, "threshold": threshold
+					, "similarity_metric": distance_metric
+				}
+
+				resp_objects.append(resp_obj)
+
+	if resp_objects is None:
+		return None
+
+	return sorted(resp_objects, key=lambda x: x['distance'])[-1]
