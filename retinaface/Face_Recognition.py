@@ -78,6 +78,9 @@ def preprocess_face(img, target_size=(224, 224), grayscale = False, model = None
 	base_img = img.copy()
 	img, region = detect_face(img, threshold=0.9, model = model, align = align, allow_upscaling = True)
 
+	if type(img) != np.ndarray and img == None:
+		return None
+
 	#--------------------------
 
 	if img.shape[0] == 0 or img.shape[1] == 0:
@@ -184,7 +187,7 @@ def detect_face(img_path, threshold=0.9, model = None, align=True, allow_upscali
 
     obj = detect_faces(img, threshold=threshold, model = model, allow_upscaling = allow_upscaling)
 
-    if len(obj) > 0:
+    if type(obj) == dict and len(obj) > 0:
         identity = obj['face_1']
         facial_area = identity["facial_area"]
 
@@ -434,6 +437,9 @@ def represent(img_path, model = None, detector_backend = None, enforce_detection
 		, enforce_detection = enforce_detection
 		, align = align)
 
+	if type(img) != np.ndarray and img == None:
+		return None
+
 	#---------------------------------
 	#custom normalization
 
@@ -540,6 +546,9 @@ def verify(img1_path, img2_path=None, distance_metric = 'cosine', model = None, 
 
 				#----------------------
 				#find distances between embeddings
+			
+			if img1_representation == None or img2_representation == None:
+				return None
 
 			for j in metrics:
 				if j == 'cosine':
@@ -625,6 +634,9 @@ def verify_database(img_path, distance_metric = 'cosine', model = None, detector
 			, normalization = normalization
 			)
 
+	if img1_representation == None:
+		return None
+
 	resp_objects = []
 	with open('databas.txt', 'r') as f:
 		while True:
@@ -665,7 +677,7 @@ def verify_database(img_path, distance_metric = 'cosine', model = None, detector
 
 				resp_objects.append(resp_obj)
 
-	if resp_objects is None:
+	if len(resp_objects) == 0:
 		return None
 
-	return sorted(resp_objects, key=lambda x: x['distance'])[-1]
+	return sorted(resp_objects, key=lambda x: x['distance'])[0]
