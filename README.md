@@ -1,5 +1,5 @@
 # RetinaFace and Arcface
-This repo implements RetinaFace and Arcface for face detection.
+This repo implements RetinaFace and Arcface for face recognition.
 
 ## Preparation
 To run it, you need to clone repo and install package:
