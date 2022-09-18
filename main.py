@@ -2,6 +2,7 @@ import cv2
 from retinaface import Face_Recognition
 from retinaface.model import arcface
 from threading import Thread, Lock
+import argparse
 
 
 # threadLimiter = threading.BoundedSemaphore(1)
@@ -14,17 +15,21 @@ def predict(img):
             facial_area[:] = out['facial_area']
         else:
             facial_area[:] = []
-    # print(out)
+    print(out)
     # print (threading.currentThread().getName(), 'Exiting')
     # threadLimiter.release()
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--fps', action='store', default=60, type=int, help='The frame will detect per second.')
+    args = parser.parse_args()
+
     lock = Lock()
     model = arcface.loadModel()
     detector_backend = Face_Recognition.build_model()
-    loop = fps = 60
+    loop = fps = args.fps
     facial_area = []
-    
+
     cam = cv2.VideoCapture(0)
     while True:
         _, frame = cam.read()
