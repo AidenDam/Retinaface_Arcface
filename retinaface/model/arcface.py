@@ -30,8 +30,15 @@ def loadModel(url = 'https://github.com/serengil/deepface_models/releases/downlo
 
 	output = home+'/.deepface/weights/arcface_weights.h5'
 
-	if os.path.isfile(output) != True:
+	if not os.path.exists(home+"/.deepface"):
+		os.mkdir(home+"/.deepface")
+		print("Directory ",home,"/.deepface created")
 
+	if not os.path.exists(home+"/.deepface/weights"):
+		os.mkdir(home+"/.deepface/weights")
+		print("Directory ",home,"/.deepface/weights created")
+
+	if os.path.isfile(output) != True:
 		print('arcface_weights.h5 will be downloaded to', output)
 		gdown.download(url, output, quiet=False)
 
