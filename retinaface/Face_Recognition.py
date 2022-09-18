@@ -71,15 +71,15 @@ def get_image(img_path):
 
     return img
 
-def preprocess_face(img, target_size=(224, 224), grayscale = False, model = None, enforce_detection = True, return_region = False, align = True):
+def preprocess_face(img, target_size=(224, 224), grayscale = False, model = None, enforce_detection = True, return_facial_area = False, align = True):
 
 	#img might be path, base64 or numpy array. Convert it to numpy whatever it is.
 	img = get_image(img)
 	base_img = img.copy()
-	img, region = detect_face(img, threshold=0.9, model = model, align = align, allow_upscaling = True)
+	img, facial_area = detect_face(img, threshold=0.9, model = model, align = align, allow_upscaling = True)
 
 	if type(img) != np.ndarray and img == None:
-		return None
+		return None, None
 
 	#--------------------------
 
@@ -131,8 +131,8 @@ def preprocess_face(img, target_size=(224, 224), grayscale = False, model = None
 
 	#---------------------------------------------------
 
-	if return_region == True:
-		return img_pixels, region
+	if return_facial_area == True:
+		return img_pixels, facial_area
 	else:
 		return img_pixels
 
@@ -191,12 +191,6 @@ def detect_face(img_path, threshold=0.9, model = None, align=True, allow_upscali
         identity = obj['face_1']
         facial_area = identity["facial_area"]
 
-        y = facial_area[1]
-        h = facial_area[3] - y
-        x = facial_area[0]
-        w = facial_area[2] - x
-        img_region = [x, y, w, h]
-
         #detected_face = img[int(y):int(y+h), int(x):int(x+w)] #opencv
         detected_face = img[facial_area[1]: facial_area[3], facial_area[0]: facial_area[2]]
 
@@ -205,17 +199,17 @@ def detect_face(img_path, threshold=0.9, model = None, align=True, allow_upscali
             left_eye = landmarks["left_eye"]
             right_eye = landmarks["right_eye"]
             nose = landmarks["nose"]
-            mouth_right = landmarks["mouth_right"]
-            mouth_left = landmarks["mouth_left"]
+            # mouth_right = landmarks["mouth_right"]
+            # mouth_left = landmarks["mouth_left"]
 
             detected_face = postprocess.alignment_procedure(detected_face, right_eye, left_eye, nose)
 
-        return detected_face, img_region
+        return detected_face, facial_area
     else: #len(obj) == 0
         face = None
-        region = [0, 0, img.shape[0], img.shape[1]]
+        facial_area = [0, 0, img.shape[0], img.shape[1]]
 
-    return face, region
+    return face, facial_area
 
 def detect_faces(img_path, threshold=0.9, model = None, allow_upscaling = True):
     """
@@ -404,7 +398,7 @@ def find_input_shape(model):
 
 	return input_shape
 
-def represent(img_path, model = None, detector_backend = None, enforce_detection = True, align = True, normalization = 'base'):
+def represent(img_path, model = None, detector_backend = None, enforce_detection = True, align = True, normalization = 'base', return_facial_area = False):
 
 	"""
 	This function represents facial images as vectors.
@@ -431,14 +425,15 @@ def represent(img_path, model = None, detector_backend = None, enforce_detection
 	input_shape_x, input_shape_y = find_input_shape(model)
 
 	#detect and align
-	img = preprocess_face(img = img_path
+	img, facial_area = preprocess_face(img = img_path
 		, model = detector_backend
 		, target_size=(input_shape_y, input_shape_x)
 		, enforce_detection = enforce_detection
-		, align = align)
+		, align = align
+		, return_facial_area=True)
 
 	if type(img) != np.ndarray and img == None:
-		return None
+		return None, None
 
 	#---------------------------------
 	#custom normalization
@@ -450,7 +445,10 @@ def represent(img_path, model = None, detector_backend = None, enforce_detection
 	#represent
 	embedding = model.predict(img)[0].tolist()
 
-	return embedding
+	if return_facial_area == True:
+		return embedding, facial_area
+	else:
+		return embedding
 
 def initialize_input(img1_path, img2_path = None):
 
@@ -626,13 +624,13 @@ def verify_database(img_path, distance_metric = 'cosine', model = None, detector
 
 	"""
 
-	img1_representation = represent(img_path = img_path
+	img1_representation, region = represent(img_path = img_path
 			, model = model
 			, detector_backend = detector_backend
 			, enforce_detection = enforce_detection
 			, align = align
 			, normalization = normalization
-			)
+			, return_facial_area=True)
 
 	if img1_representation == None:
 		return None
@@ -670,6 +668,7 @@ def verify_database(img_path, distance_metric = 'cosine', model = None, detector
 			if distance <= threshold:
 				resp_obj = {
 					"label": label
+					, "facial_area": region
 					, "distance": distance
 					, "threshold": threshold
 					, "similarity_metric": distance_metric
@@ -680,4 +679,4 @@ def verify_database(img_path, distance_metric = 'cosine', model = None, detector
 	if len(resp_objects) == 0:
 		return None
 
-	return sorted(resp_objects, key=lambda x: x['distance'])[0]
+	return min(resp_objects, key=lambda x: x['distance'])
