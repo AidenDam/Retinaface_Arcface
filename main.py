@@ -21,13 +21,13 @@ def predict(img):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fps', action='store', default=60, type=int, help='The frame will detect per second.')
+    parser.add_argument('--nf', action='store', default=60, type=int, help='The frame will detect after n frames.')
     args = parser.parse_args()
 
     lock = Lock()
     model = arcface.loadModel()
     detector_backend = Face_Recognition.build_model()
-    loop = fps = args.fps
+    loop = nf = args.nf
     facial_area = []
 
     cam = cv2.VideoCapture(0)
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         _, frame = cam.read()
         fame = cv2.flip(frame, 1)
 
-        if loop == fps:
+        if loop == nf:
             loop = 0
 
             p = Thread(target=predict, args=(frame,))
