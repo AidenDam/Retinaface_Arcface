@@ -28,7 +28,7 @@ python main.py
 ```
 - Note: if you don't have gpu, you should config the frame will detect after n frames. by:
 ```
-python main.py -nf <n frames>
+python main.py --nf <n frames>
 ```
 ---
 If you have any question or encouter any problem regarding this repo. Please open an issue and cc me. Thank you.
